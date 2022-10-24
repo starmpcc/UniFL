@@ -1,0 +1,107 @@
+{
+    "mimic3": {
+        "LABEVENTS": {
+            "value": [
+                "VALUE",
+                "VALUENUM"
+            ],
+            "cate": [],
+            "code": "ITEMID"
+        },
+        "PRESCRIPTIONS": {
+            "value": [
+                "DOSE_VAL_RX",
+                "FORM_VAL_DISP"
+            ],
+            "cate": [],
+            "code": "DRUG"
+        },
+        "INPUTEVENTS": {
+            "value": [
+                "AMOUNT",
+                "RATE",
+                "PATIENTWEIGHT",
+                "TOTALAMOUNT",
+                "ORIGINALAMOUNT",
+                "ORIGINALRATE"
+            ],
+            "cate": [
+                "ISOPENBAG",
+                "CONTINUEINNEXTDEPT",
+                "CANCELREASON"
+            ],
+            "code": "ITEMID"
+        }
+    },
+    "eicu": {
+        "lab": {
+            "value": [
+                "labresult",
+                "labresulttext"
+            ],
+            "cate": [
+                "labtypeid"
+            ],
+            "code": "labname"
+        },
+        "medication": {
+            "value": [
+                "value"
+            ],
+            "cate": [
+                "drugordercancelled",
+                "drugivadmixture"
+            ],
+            "code": "drugname"
+        },
+        "infusionDrug": {
+            "value": [
+                "drugrate",
+                "infusionrate",
+                "drugamount",
+                "volumeoffluid",
+                "patientweight"
+            ],
+            "cate": [],
+            "code": "drugname"
+        }
+    },
+    "mimic4": {
+        "labevents": {
+            "value": [
+                "VALUE",
+                "VALUENUM",
+                "REF_RANGE_UPPER",
+                "REF_RANGE_LOWER"
+            ],
+            "cate": [],
+            "code": "ITEMID"
+        },
+        "prescriptions": {
+            "value": [
+                "DOSE_VAL_RX",
+                "FORM_VAL_DISP",
+                "DOSES_PER_24_HRS"
+            ],
+            "cate": [],
+            "code": "DRUG"
+        },
+        "inputevents": {
+            "value": [
+                "AMOUNT",
+                "RATE",
+                "PATIENTWEIGHT",
+                "TOTALAMOUNT",
+                "ORIGINALAMOUNT",
+                "ORIGINALRATE"
+            ],
+            "cate": [
+                "ISOPENBAG",
+                "CONTINUEINNEXTDEPT",
+                "CANCELREASON",
+                "VALUECOUNTS"
+            ],
+            "code": "ITEMID"
+        }
+    }
+}

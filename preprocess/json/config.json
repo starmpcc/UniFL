@@ -1,0 +1,223 @@
+{
+    "Table": {
+        "mimic3": [
+            {
+                "table_name": "LABEVENTS",
+                "time_column": "CHARTTIME",
+                "table_type": "lab",
+                "time_excluded": [],
+                "id_excluded": [
+                    "ROW_ID",
+                    "SUBJECT_ID"
+                ]
+            },
+            {
+                "table_name": "PRESCRIPTIONS",
+                "time_column": "STARTDATE",
+                "table_type": "med",
+                "time_excluded": [
+                    "ENDDATE"
+                ],
+                "id_excluded": [
+                    "GSN",
+                    "NDC",
+                    "ROW_ID",
+                    "ICUSTAY_ID",
+                    "SUBJECT_ID"
+                ]
+            },
+            {
+                "table_name": "INPUTEVENTS",
+                "time_column": "CHARTTIME",
+                "table_type": "inf",
+                "time_excluded": [
+                    "ENDTIME",
+                    "STORETIME",
+                    "COMMENTS_DATE"
+                ],
+                "id_excluded": [
+                    "CGID",
+                    "ORDERID",
+                    "LINKORDERID",
+                    "ROW_ID",
+                    "ICUSTAY_ID",
+                    "SUBJECT_ID"
+                ]
+            }
+        ],
+        "eicu": [
+            {
+                "table_name": "lab",
+                "time_column": "labresultoffset",
+                "table_type": "lab",
+                "time_excluded": [
+                    "labresultrevisedoffset"
+                ],
+                "id_excluded": [
+                    "labid"
+                ]
+            },
+            {
+                "table_name": "medication",
+                "time_column": "drugstartoffset",
+                "table_type": "med",
+                "time_excluded": [
+                    "drugorderoffset",
+                    "drugstopoffset"
+                ],
+                "id_excluded": [
+                    "medicationid",
+                    "gtc",
+                    "drughiclseqno"
+                ]
+            },
+            {
+                "table_name": "infusionDrug",
+                "time_column": "infusionoffset",
+                "table_type": "inf",
+                "time_excluded": [],
+                "id_excluded": [
+                    "infusiondrugid"
+                ]
+            }
+        ],
+        "mimic4": [
+            {
+                "table_name": "labevents",
+                "time_column": "CHARTTIME",
+                "table_type": "lab",
+                "time_excluded": [
+                    "STORETIME"
+                ],
+                "id_excluded": [
+                    "SUBJECT_ID",
+                    "SPECIMEN_ID",
+                    "LABEVENT_ID"
+                ]
+            },
+            {
+                "table_name": "prescriptions",
+                "time_column": "STARTTIME",
+                "table_type": "med",
+                "time_excluded": [
+                    "STOPTIME"
+                ],
+                "id_excluded": [
+                    "GSN",
+                    "NDC",
+                    "SUBJECT_ID",
+                    "PHARMACY_ID"
+                ]
+            },
+            {
+                "table_name": "inputevents",
+                "time_column": "STARTTIME",
+                "table_type": "inf",
+                "time_excluded": [
+                    "ENDTIME",
+                    "STORETIME"
+                ],
+                "id_excluded": [
+                    "ORDERID",
+                    "LINKORDERID",
+                    "SUBJECT_ID",
+                    "STAY_ID"
+                ]
+            }
+        ]
+    },
+    "selected": {
+        "mimic3": {
+            "LABEVENTS": {
+                "ID": "ID",
+                "ITEMID": "code",
+                "VALUENUM": "value",
+                "VALUEUOM": "uom"
+            },
+            "PRESCRIPTIONS": {
+                "ID": "ID",
+                "DRUG": "code",
+                "ROUTE": "route",
+                "PROD_STRENGTH": "prod",
+                "DOSE_VAL_RX": "value",
+                "DOSE_UNIT_RX": "uom"
+            },
+            "INPUTEVENTS": {
+                "ID": "ID",
+                "ITEMID": "code",
+                "RATE": "value",
+                "RATEUOM": "uom"
+            }
+        },
+        "eicu": {
+            "lab": {
+                "ID": "ID",
+                "labname": "code",
+                "labresult": "value",
+                "labmeasurenamesystem": "uom"
+            },
+            "medication": {
+                "ID": "ID",
+                "drugname": "code",
+                "routeadmin": "route",
+                "value": "value",
+                "uom": "uom"
+            },
+            "infusionDrug": {
+                "ID": "ID",
+                "drugname": "code",
+                "infusionrate": "value",
+                "uom": "uom"
+            }
+        },
+        "mimic4": {
+            "labevents": {
+                "ID": "ID",
+                "ITEMID": "code",
+                "VALUENUM": "value",
+                "VALUEUOM": "uom"
+            },
+            "prescriptions": {
+                "ID": "ID",
+                "DRUG": "code",
+                "PROD_STRENGTH": "prod",
+                "DOSE_VAL_RX": "value",
+                "DOSE_UNIT_RX": "uom"
+            },
+            "inputevents": {
+                "ID": "ID",
+                "ITEMID": "code",
+                "RATE": "value",
+                "RATEUOM": "uom"
+            }
+        }
+    },
+    "DICT_FILE": {
+        "mimic3": {
+            "LABEVENTS": [
+                "D_LABITEMS",
+                "ITEMID"
+            ],
+            "INPUTEVENTS": [
+                "D_ITEMS",
+                "ITEMID"
+            ]
+        },
+        "eicu": {},
+        "mimic4": {
+            "labevents": [
+                "d_labitems",
+                "ITEMID"
+            ],
+            "inputevents": [
+                "d_items",
+                "ITEMID"
+            ]
+        }
+    },
+    "ID": {
+        "mimic3": "HADM_ID",
+        "eicu": "patientunitstayid",
+        "mimic4": "HADM_ID"
+    }
+}
