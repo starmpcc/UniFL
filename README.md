@@ -1,5 +1,5 @@
 # Universal EHR Federated Learning Framework
-This repository is the codes for [ML4H Paper Link]
+This repository is the codes for [UniFL](https://arxiv.org/abs/2211.07300)
 ## How to Run
 ### Requirements
 ```
@@ -75,3 +75,4 @@ or, you can execute multiple experiments simulatneously with `scheduler.py`
 - Pause & Resume is not verified with distributed environment
 - We used one A100 80G gpu or two A6000 48G gpus for each run
 - Distributed Data Parallel (DDP) with resume is not tested
+- You can check hyperparameters on `main.py`
