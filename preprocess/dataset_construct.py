@@ -1,9 +1,13 @@
-import pandas as pd
-import numpy as np
-import os
-import warnings
-from collections import Counter
 import argparse
+import os
+import shutil
+import subprocess
+import warnings
+import zipfile
+from collections import Counter
+
+import numpy as np
+import pandas as pd
 
 warnings.filterwarnings("ignore")
 
@@ -15,10 +19,10 @@ def create_MIMIC3_ICU(args):
     timegap = pd.Timedelta(time_gap_hours, unit="h")
     pred_window = pd.Timedelta(pred_window_hours, unit="h")
 
-    patient_path = os.path.join(args.rawdata_path, "mimic3", "PATIENTS.csv")
-    icustay_path = os.path.join(args.rawdata_path, "mimic3", "ICUSTAYS.csv")
-    dx_path = os.path.join(args.rawdata_path, "mimic3", "DIAGNOSES_ICD.csv")
-    ad_path = os.path.join(args.rawdata_path, "mimic3", "ADMISSIONS.csv")
+    patient_path = os.path.join(args.mimic3_path, "PATIENTS.csv")
+    icustay_path = os.path.join(args.mimic3_path, "ICUSTAYS.csv")
+    dx_path = os.path.join(args.mimic3_path, "DIAGNOSES_ICD.csv")
+    ad_path = os.path.join(args.mimic3_path, "ADMISSIONS.csv")
 
     patients = pd.read_csv(patient_path)
     icus = pd.read_csv(icustay_path)
@@ -168,9 +172,7 @@ def create_MIMIC3_ICU(args):
     )
 
     # diagnosis label
-    ccs_dx = pd.read_csv(
-        os.path.join(args.rawdata_path, "mimic3", "ccs_multi_dx_tool_2015.csv")
-    )
+    ccs_dx = pd.read_csv(args.ccs_path)
     ccs_dx["'ICD-9-CM CODE'"] = (
         ccs_dx["'ICD-9-CM CODE'"].str[1:].str[:-1].str.replace(" ", "")
     )
@@ -196,9 +198,9 @@ def create_MIMIC3_ICU(args):
     print("max length: ", np.array(dx1_length).max())
     print("min length: ", np.array(dx1_length).min())
 
-    inputdata_path = os.path.join(args.inputdata_path, "mimic3_cohort.pkl")
-    print(f"The final MIMIC3 cohort pickle is saved at: {inputdata_path}")
-    cohort.to_pickle(inputdata_path)
+    save_path = os.path.join(args.save_path, "mimic3_cohort.pkl")
+    print(f"The final MIMIC3 cohort pickle is saved at: {save_path}")
+    cohort.to_pickle(save_path)
 
 
 # Create eICU dataset
@@ -209,9 +211,9 @@ def create_eICU_ICU(args):
     timegap = pd.Timedelta(time_gap_hours, unit="h")
     pred_window = pd.Timedelta(pred_window_hours, unit="h")
 
-    patient_path = os.path.join(args.rawdata_path, "eicu", "patient.csv")
+    patient_path = os.path.join(args.eicu_path, "patient.csv")
     patient_df = pd.read_csv(patient_path)
-    dx_path = os.path.join(args.rawdata_path, "eicu", "diagnosis.csv")
+    dx_path = os.path.join(args.eicu_path, "diagnosis.csv")
     dx = pd.read_csv(dx_path)
 
     print("Unique patient unit stayid : ", len(set(patient_df.patientunitstayid)))
@@ -329,19 +331,18 @@ def create_eICU_ICU(args):
     )
 
     cohort_ei = tempdf.copy().reset_index(drop=True)
-    cohort_ei = eicu_diagnosis_label(cohort_ei)
+    cohort_ei = eicu_diagnosis_label(cohort_ei, args)
     cohort_ei = cohort_ei[cohort_ei["diagnosis"] != float].reset_index(drop=True)
     cohort_ei = cohort_ei.reset_index(drop=True)
 
-    inputdata_path = os.path.join(args.inputdata_path, "eicu_cohort.pkl")
-    print(f"The final eicu cohort pickle is saved at: {inputdata_path}")
-    cohort_ei.to_pickle(inputdata_path)
+    save_path = os.path.join(args.save_path, "eicu_cohort.pkl")
+    print(f"The final eicu cohort pickle is saved at: {save_path}")
+    cohort_ei.to_pickle(save_path)
 
 
-def eicu_diagnosis_label(eicu_cohort, rawdata_path):
-    ccs_dx = pd.read_csv(
-        os.path.join(rawdata_path, "mimic3", "ccs_multi_dx_tool_2015.csv")
-    )
+def eicu_diagnosis_label(eicu_cohort, args):
+    # TODO
+    ccs_dx = pd.read_csv(args.ccs_path)
     ccs_dx["'ICD-9-CM CODE'"] = (
         ccs_dx["'ICD-9-CM CODE'"].str[1:].str[:-1].str.replace(" ", "")
     )
@@ -357,7 +358,8 @@ def eicu_diagnosis_label(eicu_cohort, rawdata_path):
     for x in eicu_dx_df["diagnosisstring"]:
         eicu_diagnosis_list.extend(x)
     eicu_dx_unique = list(set(eicu_diagnosis_list))
-    eicu_dx = pd.read_csv(os.path.join(rawdata_path, "eicu", "diagnosis.csv"))
+
+    eicu_dx = pd.read_csv(os.path.join(args.eicu_path, "diagnosis.csv"))
 
     # eicu_dx all diagnosis status
     eicu_dx_list = list(eicu_dx["icd9code"].values)
@@ -389,7 +391,7 @@ def eicu_diagnosis_label(eicu_cohort, rawdata_path):
     print("Number of diagnosis with only ICD 10 code: {}".format(len(key_error_list)))
 
     # icd10 to icd9 mapping csv file
-    icd10_icd9 = pd.read_csv(os.path.join(rawdata_path, "eicu", "icd10cmtoicd9gem.csv"))
+    icd10_icd9 = pd.read_csv(args.gem_path)
 
     # make icd10 - icd9 dictionary
     icd10_icd9_dict = {}
@@ -527,10 +529,10 @@ def create_MIMIC4_ICU(args):
     timegap = pd.Timedelta(time_gap_hours, unit="h")
     pred_window = pd.Timedelta(pred_window_hours, unit="h")
 
-    icu = pd.read_csv(os.path.join(args.rawdata_path, "mimic4", "icustays.csv"))
-    adm = pd.read_csv(os.path.join(args.rawdata_path, "mimic4", "admissions.csv"))
-    pat = pd.read_csv(os.path.join(args.rawdata_path, "mimic4", "patients.csv"))
-    dx = convert_icd_mimic4()
+    icu = pd.read_csv(os.path.join(args.mimic4_path, "icu/icustays.csv"))
+    adm = pd.read_csv(os.path.join(args.mimic4_path, "hosp/admissions.csv"))
+    pat = pd.read_csv(os.path.join(args.mimic4_path, "hosp/patients.csv"))
+    dx = convert_icd_mimic4(args)
 
     def columns_upper(df):
         df.columns = [x.upper() for x in df.columns]
@@ -649,9 +651,7 @@ def create_MIMIC4_ICU(args):
     cohort = cohort.join(diagnosis, on="HADM_ID")
 
     # diagnosis label
-    ccs_dx = pd.read_csv(
-        os.path.join(args.rawdata_path, "mimic3", "ccs_multi_dx_tool_2015.csv")
-    )
+    ccs_dx = pd.read_csv(args.ccs_path)
     ccs_dx["'ICD-9-CM CODE'"] = (
         ccs_dx["'ICD-9-CM CODE'"].str[1:].str[:-1].str.replace(" ", "")
     )
@@ -681,20 +681,18 @@ def create_MIMIC4_ICU(args):
     print("max length: ", np.array(dx1_length).max())
     print("min length: ", np.array(dx1_length).min())
 
-    inputdata_path = os.path.join(args.inputdata_path, "mimic4_cohort.pkl")
-    print(f"The final MIMIC4 cohort pickle is saved at: {inputdata_path}")
-    cohort.to_pickle(inputdata_path)
+    save_path = os.path.join(args.save_path, "mimic4_cohort.pkl")
+    print(f"The final MIMIC4 cohort pickle is saved at: {save_path}")
+    cohort.to_pickle(save_path)
 
 
-def convert_icd_mimic4(rawdata_path):
+def convert_icd_mimic4(args):
     # load dx from MIMIC4
-    src_path = os.path.join(rawdata_path, "mimic4")
-    dx = pd.read_csv(os.path.join(src_path, "diagnoses_icd.csv"))
+    dx = pd.read_csv(os.path.join(args.mimic4_path, "hosp/diagnoses_icd.csv"))
 
     # load mapping from CMS (2018 ver.)
-    file_map_10_cms = os.path.join(src_path, "2018_I10gem.txt")
     map_10_cms = pd.read_csv(
-        file_map_10_cms, sep="\s+", header=None, names=["icd10cm", "icd9cm", "flags"]
+        args.i10gem_path, sep="\s+", header=None, names=["icd10cm", "icd9cm", "flags"]
     )
 
     dx_icd_10 = dx[dx.icd_version == 10].icd_code
@@ -740,10 +738,80 @@ def convert_icd_mimic4(rawdata_path):
     return dx
 
 
+def download_files(args):
+    subprocess.run(
+        [
+            "wget",
+            "-N",
+            "-c",
+            "https://www.hcup-us.ahrq.gov/toolssoftware/ccs/Multi_Level_CCS_2015.zip",
+            "-P",
+            args.cache_path,
+        ]
+    )
+
+    with zipfile.ZipFile(
+        os.path.join(args.cache_path, "Multi_Level_CCS_2015.zip"), "r"
+    ) as zip_ref:
+        zip_ref.extractall(os.path.join(args.cache_path, "foo.d"))
+    os.rename(
+        os.path.join(args.cache_path, "foo.d", "ccs_multi_dx_tool_2015.csv"),
+        os.path.join(args.cache_path, "ccs_multi_dx_tool_2015.csv"),
+    )
+    os.remove(os.path.join(args.cache_path, "Multi_Level_CCS_2015.zip"))
+    shutil.rmtree(os.path.join(args.cache_path, "foo.d"))
+
+    subprocess.run(
+        [
+            "wget",
+            "-N",
+            "-c",
+            "https://data.nber.org/gem/icd10cmtoicd9gem.csv",
+            "-P",
+            args.cache_path,
+        ]
+    )
+
+    subprocess.run(
+        [
+            "wget",
+            "-N",
+            "-c",
+            "https://www.cms.gov/Medicare/Coding/ICD10/Downloads/2018-ICD-10-CM-General-Equivalence-Mappings.zip",
+            "-P",
+            args.cache_path,
+        ]
+    )
+    with zipfile.ZipFile(
+        os.path.join(
+            args.cache_path, "2018-ICD-10-CM-General-Equivalence-Mappings.zip"
+        ),
+        "r",
+    ) as zip_ref:
+        zip_ref.extractall(os.path.join(args.cache_path, "foo.d"))
+    os.rename(
+        os.path.join(args.cache_path, "foo.d", "2018_I10gem.txt"),
+        os.path.join(args.cache_path, "2018_I10gem.txt"),
+    )
+    os.remove(
+        os.path.join(args.cache_path, "2018-ICD-10-CM-General-Equivalence-Mappings.zip")
+    )
+    shutil.rmtree(os.path.join(args.cache_path, "foo.d"))
+
+    ccs_path = os.path.join(args.cache_path, "ccs_multi_dx_tool_2015.csv")
+    gem_path = os.path.join(args.cache_path, "icd10cmtoicd9gem.csv")
+    i10gem_path = os.path.join(args.cache_path, "2018_I10gem.txt")
+
+    return ccs_path, gem_path, i10gem_path
+
+
 def get_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--rawdata_path", type=str, required=True)
-    parser.add_argument("--inputdata_path", type=str, required=True)
+    parser.add_argument("--mimic3_path", type=str, required=True)
+    parser.add_argument("--mimic4_path", type=str, required=True)
+    parser.add_argument("--eicu_path", type=str, required=True)
+    parser.add_argument("--cache_path", type=str, default="~/.cache")
+    parser.add_argument("--save_path", type=str, required=True)
     parser.add_argument("--event_window_hours", type=int, default=12)
     parser.add_argument("--time_gap_hours", type=int, default=12)
     parser.add_argument("--pred_window_hours", type=int, default=48)
@@ -755,6 +823,7 @@ def get_parser():
 
 def main():
     args = get_parser().parse_args()
+    args.ccs_path, args.gem_path, args.i10gem_path = download_files(args)
     print("create MIMIC3 ICU start!")
     create_MIMIC3_ICU(args)
     print("create eICU ICU start!")

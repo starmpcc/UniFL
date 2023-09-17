@@ -1,11 +1,11 @@
 #!bin/sh
-rawdata_path=$1
-inputdata_path=$2
+mimic3_path=$1
+mimic4_path=$2
+eicu_path=$3
+save_path=$4
 
-python dataset_construct.py --rawdata_path $rawdata_path --inputdata_path $inputdata_path ;
-python main_setp1.py --rawdata_path $rawdata_path --inputdata_path $inputdata_path ;
-python main_step2.py --rawdata_path $rawdata_path --inputdata_path $inputdata_path ;
-python npy_script.py --rawdata_path $rawdata_path --inputdata_path $inputdata_path ;
-python split_for_FL.py --rawdata_path $rawdata_path --inputdata_path $inputdata_path ;
-python split_npy.py --rawdata_path $rawdata_path --inputdata_path $inputdata_path ;
-
+python dataset_construct.py --mimic3_path $mimic3_path --mimic4_path $mimic4_path --eicu_path $eicu_path --save_path $save_path ;
+python main_step1.py --mimic3_path $mimic3_path --mimic4_path $mimic4_path --eicu_path $eicu_path --save_path $save_path ;
+python main_step2.py --save_path $save_path ;
+python split_for_FL.py --save_path $save_path --mimic3_path $mimic3_path --eicu_path $eicu_path ;
+python split_npy.py --save_path $save_path ;

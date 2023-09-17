@@ -1,31 +1,33 @@
-import pandas as pd
-import os, random, time
-import numpy as np
-import warnings
-import more_itertools as mit
-from transformers import AutoTokenizer
-from sklearn.preprocessing import MultiLabelBinarizer
-from fold_split import stratified_split, random_split
-from preprocess_utils import *
-import json
 import argparse
+import json
+import os
+import random
+import time
+import warnings
 
+import more_itertools as mit
+import numpy as np
+import pandas as pd
+from fold_split import random_split, stratified_split
+from preprocess_utils import *
+from sklearn.preprocessing import MultiLabelBinarizer
+from transformers import AutoTokenizer
 
 warnings.filterwarnings("ignore")
 
 tokenizer = AutoTokenizer.from_pretrained("emilyalsentzer/Bio_ClinicalBERT")
 
 
-def complete_dataframe(src, table_names, config, inputdata_path, root):
-
+def complete_dataframe(src, table_names, config, save_path):
+    table_names = [i.split("/")[-1] for i in table_names]
     lab = pd.read_pickle(
-        os.path.join(inputdata_path, src, "descemb_whole", f"{table_names[0]}.pkl")
+        os.path.join(save_path, src, "descemb_whole", f"{table_names[0]}.pkl")
     )
     pre = pd.read_pickle(
-        os.path.join(inputdata_path, src, "descemb_whole", f"{table_names[1]}.pkl")
+        os.path.join(save_path, src, "descemb_whole", f"{table_names[1]}.pkl")
     )
     inp = pd.read_pickle(
-        os.path.join(inputdata_path, src, "descemb_whole", f"{table_names[2]}.pkl")
+        os.path.join(save_path, src, "descemb_whole", f"{table_names[2]}.pkl")
     )
     df = pd.concat([inp, lab, pre], axis=0)
     print(
@@ -39,7 +41,7 @@ def complete_dataframe(src, table_names, config, inputdata_path, root):
     print(">> Sort by time and liniearize events for each HADM_ID")
 
     # Read cohort dataframe including label info.
-    cohort_df = pd.read_pickle(os.path.join(inputdata_path, "{src}_cohort.pkl"))
+    cohort_df = pd.read_pickle(os.path.join(save_path, f"{src}_cohort.pkl"))
     cohort_df = cohort_df[
         [
             config["ID"][src],
@@ -71,7 +73,7 @@ def complete_dataframe(src, table_names, config, inputdata_path, root):
 
     label_df = pred_df.rename(columns=label)
 
-    label_df.to_csv(os.path.join(inputdata_path, src, "label_df.csv"))
+    label_df.to_csv(os.path.join(save_path, src, "label_df.csv"))
 
     return label_df
 
@@ -423,8 +425,7 @@ def final_check(flat_output, hi_output, word_max_len):
 
 def get_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--rawdata_path", type=str, default="RAWDATA_PATH")
-    parser.add_argument("--inputdata_path", type=str, default="INPUTDATA_PATH")
+    parser.add_argument("--save_path", type=str)
     return parser
 
 
@@ -439,36 +440,34 @@ def main():
         config = json.load(config_file)
 
     for src in ["mimic3", "eicu", "mimic4"]:
-        os.makedirs(os.path.join(args.inputdata_path, src), exist_ok=True)
-        os.makedirs(os.path.join(args.inputdata_path, src, "label"), exist_ok=True)
-        os.makedirs(os.path.join(args.inputdata_path, src, "fold"), exist_ok=True)
-        os.makedirs(os.path.join(args.inputdata_path, src, "npy"), exist_ok=True)
+        os.makedirs(os.path.join(args.save_path, src), exist_ok=True)
+        os.makedirs(os.path.join(args.save_path, src, "label"), exist_ok=True)
+        os.makedirs(os.path.join(args.save_path, src, "fold"), exist_ok=True)
+        os.makedirs(os.path.join(args.save_path, src, "npy"), exist_ok=True)
 
         table_names = [elem["table_name"] for elem in config["Table"][src]]
 
         # [1] Find label and make fold splits
-        if not os.path.isfile(os.path.join(args.inputdata_path), "label_df.csv"):
-            df = complete_dataframe(src, table_names, config, args.inputdata_path)
+        if not os.path.isfile(os.path.join(args.save_path, "label_df.csv")):
+            df = complete_dataframe(src, table_names, config, args.save_path)
         else:
             start = time.time()
-            df = pd.read_csv(os.path.join(args.inputdata_path, "label_df.csv"))
+            df = pd.read_csv(os.path.join(args.save_path, "label_df.csv"))
             end = time.time()
             print(">> Loading {} csv is done... {} [sec]".format(df.shape, end - start))
 
-        if not os.path.isfile(os.path.join(args.inputdata_path, "dpes.npy")):
+        if not os.path.isfile(os.path.join(args.save_path, "dpes.npy")):
             # [2] Convert df to numpy
-            dataframe2numpy(df, args.inputdata_path)
+            dataframe2numpy(df, args.save_path, src)
 
         start = time.time()
         inputs = np.load(
-            os.path.join(args.inputdata_path, src, "inputs.npy"), allow_pickle=True
+            os.path.join(args.save_path, src, "inputs.npy"), allow_pickle=True
         )
         types = np.load(
-            os.path.join(args.inputdata_path, src, "types.npy"), allow_pickle=True
+            os.path.join(args.save_path, src, "types.npy"), allow_pickle=True
         )
-        dpes = np.load(
-            os.path.join(args.inputdata_path, src, "dpes.npy"), allow_pickle=True
-        )
+        dpes = np.load(os.path.join(args.save_path, src, "dpes.npy"), allow_pickle=True)
         end = time.time()
         print(
             ">> Loading numpy {} is done... {} [sec]".format(inputs.shape, end - start)
@@ -500,32 +499,31 @@ def main():
 
         if save:
             np.save(
-                os.path.join(args.inputdata_path, "npy", "inputs_ids.npy"),
+                os.path.join(args.save_path, src, "npy", "input_ids.npy"),
                 hi_output["inputs"],
             )
             np.save(
-                os.path.join(args.inputdata_path, "npy", "type_ids.npy"),
+                os.path.join(args.save_path, src, "npy", "type_ids.npy"),
                 hi_output["types"],
             )
             np.save(
-                os.path.join(args.inputdata_path, "npy", "dpe_ids.npy"),
+                os.path.join(args.save_path, src, "npy", "dpe_ids.npy"),
                 hi_output["dpes"],
             )
 
             pred_tasks = ["mort", "los3", "los7", "readm", "dx"]
 
+            os.makedirs(os.path.join(args.save_path, src, "label"), exist_ok=True)
             for task in pred_tasks:
-                pred_data = np.load(
-                    os.path.join(args.inputdata_path, src, "label", f"{task}.npy"),
-                    allow_pickle=True,
-                )
+                pred_data = df[task].to_numpy()
                 np.save(
-                    os.path.join(args.inputdata_path, f"{task}.npy"), pred_data[~mask]
+                    os.path.join(args.save_path, src, "label", f"{task}.npy"),
+                    pred_data[~mask],
                 )
                 print(f"[{task}] \t", pred_data[~mask].shape)
 
             split_traintest(df[~mask].reset_index(drop=False), check=False).to_csv(
-                os.path.join(args.inputdata_path, "fold", f"fold_100.csv")
+                os.path.join(args.save_path, src, "fold", f"fold_100.csv")
             )
 
 

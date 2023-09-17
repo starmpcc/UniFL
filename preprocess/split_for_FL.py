@@ -1,21 +1,24 @@
-import os
-import pandas as pd
-import numpy as np
-from main_step2 import split_traintest
 import argparse
+import os
+from ast import literal_eval
+
+import numpy as np
+import pandas as pd
+from main_step2 import split_traintest
 
 
 def get_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--rawdata_path", type=str, default="RAWDATA_PATH")
-    parser.add_argument("--inputdata_path", type=str, default="INPUTDATA_PATH")
+    parser.add_argument("--mimic3_path", type=str, required=True)
+    parser.add_argument("--eicu_path", type=str, required=True)
+    parser.add_argument("--save_path", type=str, required=True)
     return parser
 
 
 def main():
     args = get_parser().parse_args()
     src_list = ["mimic3", "eicu", "mimic4"]
-    label_list = ["los3", "los7", "dx", "mort", "readm", "im_disch", "fi_ac"]
+    label_list = ["los3", "los7", "dx", "mort", "readm"]
     target_list = ["input_ids", "dpe_ids", "type_ids"]
 
     client_list = [
@@ -38,9 +41,9 @@ def main():
     # MIMIC-III split
 
     fold_mimic3 = pd.read_csv(
-        os.path.join(args.inputdata_path, "mimic3", "fold", "fold_100.csv")
+        os.path.join(args.save_path, "mimic3", "fold", "fold_100.csv")
     )
-    icu_mimic3 = pd.read_csv(os.path.join(args.rawdata_path, "mimic3", "ICUSTAYS.csv"))
+    icu_mimic3 = pd.read_csv(os.path.join(args.mimic3_path, "ICUSTAYS.csv"))
     icu_mimic3.rename(columns={"HADM_ID": "pid"}, inplace=True)
     icu_mimic3 = icu_mimic3[icu_mimic3["pid"].isin(fold_mimic3["pid"].values)]
     icu_mimic3 = icu_mimic3.groupby("pid").first().reset_index()
@@ -63,11 +66,11 @@ def main():
     ].index.tolist()
 
     # eicu split
-    eicu_pat = pd.read_csv(os.path.join(args.rawdata_path, "eicu", "patient.csv"))
+    eicu_pat = pd.read_csv(os.path.join(args.eicu_path, "patient.csv"))
     eicu_pat.rename(columns={"patientunitstayid": "pid"}, inplace=True)
 
     fold_eicu = pd.read_csv(
-        os.path.join(args.inputdata_path, "eicu", "fold", "fold_100.csv")
+        os.path.join(args.save_path, "eicu", "fold", "fold_100.csv")
     )
     eicu_pat = eicu_pat[eicu_pat["pid"].isin(fold_eicu["pid"].values)]
 
@@ -92,8 +95,12 @@ def main():
     # npy, labe, fold split for FL clients
     for client in id_dict["pid"].keys():
         src = client.split("_")[0]
-        client_src_path = os.path.join(args.inputdata_path, client)
-        src_path = os.path.join(args.inputdata_path, src)
+        client_src_path = os.path.join(args.save_path, client)
+        src_path = os.path.join(args.save_path, src)
+        os.makedirs(client_src_path, exist_ok=True)
+        os.makedirs(os.path.join(client_src_path, "npy"), exist_ok=True)
+        os.makedirs(os.path.join(client_src_path, "label"), exist_ok=True)
+        os.makedirs(os.path.join(client_src_path, "fold"), exist_ok=True)
         for data in target_list:
             victim = np.load(
                 os.path.join(src_path, "npy", data + ".npy"), allow_pickle=True
@@ -108,9 +115,10 @@ def main():
             np.save(os.path.join(client_src_path, "label", label + ".npy"), label_npy)
         fold = pd.read_csv(os.path.join(src_path, "fold", "fold_100.csv"))
         fold = fold.loc[id_dict["index"][client]].reset_index(drop=True)
-        fold = split_traintest(fold, check=True)
+        fold["dx"] = fold["dx"].map(literal_eval)
+        fold = split_traintest(fold, check=False)
         fold.to_csv(
-            os.path.join(client_src_path, "fold", label + "fold_100.csv"), index=False
+            os.path.join(client_src_path, "fold", "fold_100.csv"), index=False
         )
 
 

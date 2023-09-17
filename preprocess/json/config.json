@@ -83,7 +83,7 @@
         ],
         "mimic4": [
             {
-                "table_name": "labevents",
+                "table_name": "hosp/labevents",
                 "time_column": "CHARTTIME",
                 "table_type": "lab",
                 "time_excluded": [
@@ -96,7 +96,7 @@
                 ]
             },
             {
-                "table_name": "prescriptions",
+                "table_name": "hosp/prescriptions",
                 "time_column": "STARTTIME",
                 "table_type": "med",
                 "time_excluded": [
@@ -110,7 +110,7 @@
                 ]
             },
             {
-                "table_name": "inputevents",
+                "table_name": "icu/inputevents",
                 "time_column": "STARTTIME",
                 "table_type": "inf",
                 "time_excluded": [
@@ -206,11 +206,11 @@
         "eicu": {},
         "mimic4": {
             "labevents": [
-                "d_labitems",
+                "hosp/d_labitems",
                 "ITEMID"
             ],
             "inputevents": [
-                "d_items",
+                "icu/d_items",
                 "ITEMID"
             ]
         }

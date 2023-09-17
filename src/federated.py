@@ -1,36 +1,32 @@
-import torch, os, random, requests
-import torch.multiprocessing as mp
-import numpy as np
 import logging
-import traceback
-
-from .utils import trainer_utils as utils
-from .utils import distributed_utils
-from torch.utils.data import DataLoader
-from .loss import PredLoss
-from .dataset import HierarchicalEHRDataset
-from torch.utils.data.distributed import DistributedSampler
-from copy import deepcopy
-
-from .model import UniHPF
-from .metric import PredMetric
-
-from .communication_func import communication
-from .local_training import (
-    train_naive,
-    train_fedprox,
-    inference,
-)
-from collections import OrderedDict
-from torch.nn.parallel import DistributedDataParallel
-from torch.utils.data.distributed import DistributedSampler
-import torch.distributed as dist
-import wandb
-import torch.nn as nn
-import torch
+import os
+import random
 import signal
+import traceback
 import types
+from collections import OrderedDict
+from copy import deepcopy
 from shutil import rmtree
+
+import numpy as np
+import requests
+import torch
+import torch.distributed as dist
+import torch.multiprocessing as mp
+import torch.nn as nn
+import wandb
+from torch.nn.parallel import DistributedDataParallel
+from torch.utils.data import DataLoader
+from torch.utils.data.distributed import DistributedSampler
+
+from communication_func import communication
+from dataset import HierarchicalEHRDataset
+from local_training import inference, train_fedprox, train_naive
+from loss import PredLoss
+from metric import PredMetric
+from model import UniHPF
+from utils import distributed_utils
+from utils import trainer_utils as utils
 
 logger = logging.getLogger(__name__)
 

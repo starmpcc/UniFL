@@ -1,8 +1,8 @@
 import argparse
+import datetime
 import logging
 import os
 import sys
-import datetime
 
 logging.basicConfig(
     format="%(asctime)s | %(levelname)s %(name)s %(message)s)))",
@@ -12,8 +12,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-from .federated import federated
-from .base import base
+from base import base
+from federated import federated
 
 os.environ["OMP_NUM_THREADS"] = "8"
 

@@ -1,11 +1,17 @@
-import pandas as pd
-import os, json
-from transformers import AutoTokenizer
-from preprocess_utils import *
 import argparse
+import json
+import os
+
+import pandas as pd
+from pandarallel import pandarallel
+from preprocess_utils import *
+from transformers import AutoTokenizer
+
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+pandarallel.initialize(nb_workers=os.cpu_count() // 2)
 
 
-def filter_ID_TIME_NULL(src, config, rawdata_path, inputdata_path, sample=False):
+def filter_ID_TIME_NULL(src, config, sample, args):
 
     table_list = []
     column_names = {}
@@ -14,7 +20,17 @@ def filter_ID_TIME_NULL(src, config, rawdata_path, inputdata_path, sample=False)
         table_name = table_dict["table_name"]
         print("src : ", src, ", table_name : ", table_name)
 
-        df = pd.read_csv(os.path.join(rawdata_path, src, table_name) + ".csv")
+        src_path = vars(args)[f"{src}_path"]
+        if src == "mimic3" and table_name == "INPUTEVENTS":
+            df = pd.concat(
+                [
+                    pd.read_csv(os.path.join(src_path, table_name) + "_MV.csv"),
+                    pd.read_csv(os.path.join(src_path, table_name) + "_CV.csv"),
+                ],
+                axis=0,
+            )
+        else:
+            df = pd.read_csv(os.path.join(src_path, table_name) + ".csv")
         if sample:
             df = df.iloc[: int(len(df) / 1000), :]
 
@@ -37,7 +53,8 @@ def filter_ID_TIME_NULL(src, config, rawdata_path, inputdata_path, sample=False)
 
             dict_name = config["DICT_FILE"][src][table_name][0]
             column_name = config["DICT_FILE"][src][table_name][1]
-            dict_path = os.path.join(rawdata_path, src, dict_name + ".csv")
+
+            dict_path = os.path.join(src_path, dict_name + ".csv")
             code_dict = pd.read_csv(dict_path)
 
             if src == "mimic4":
@@ -46,7 +63,7 @@ def filter_ID_TIME_NULL(src, config, rawdata_path, inputdata_path, sample=False)
         print("[3] Map ITEMID into descriptions: ", df.shape)
 
         # Read ICUSTAY
-        icu = pd.read_pickle(os.path.join(inputdata_path, f"{src}_cohort.pkl"))
+        icu = pd.read_pickle(os.path.join(args.save_path, f"{src}_cohort.pkl"))
         if src == "mimic4":
             columns_upper(icu)
         icu.rename(columns={config["ID"][src]: "ID"}, inplace=True)
@@ -153,14 +170,14 @@ def descemb_tokenize(df, table_name):
     ]
     table_token = tokenizer.encode(table_name)[1:-1]
 
-    df[target_cols] = df[target_cols].applymap(
+    df[target_cols] = df[target_cols].parallel_applymap(
         lambda x: tokenizer.encode(round_digits(x))[1:-1] if x != " " else []
     )
-    df[[col + "_dpe" for col in target_cols]] = df[target_cols].applymap(
+    df[[col + "_dpe" for col in target_cols]] = df[target_cols].parallel_applymap(
         lambda x: make_dpe(x, number_token_list) if x != [] else []
     )
 
-    df["event"] = df.apply(
+    df["event"] = df.parallel_apply(
         lambda x: sum(
             [
                 tokenizer.encode(col)[1:-1] + x[col]
@@ -171,7 +188,7 @@ def descemb_tokenize(df, table_name):
         ),
         axis=1,
     )
-    df["type"] = df.apply(
+    df["type"] = df.parallel_apply(
         lambda x: sum(
             [
                 [6] * len(tokenizer.encode(col)[1:-1]) + [7] * len(x[col])
@@ -182,7 +199,7 @@ def descemb_tokenize(df, table_name):
         ),
         axis=1,
     )
-    df["dpe"] = df.apply(
+    df["dpe"] = df.parallel_apply(
         lambda x: sum(
             [
                 [1] * len(tokenizer.encode(col)[1:-1]) + x[col + "_dpe"]
@@ -194,13 +211,13 @@ def descemb_tokenize(df, table_name):
         axis=1,
     )
 
-    df["event_token"] = df.apply(
+    df["event_token"] = df.parallel_apply(
         lambda x: table_token + x["event"] + [vocab[x["time_bucket"]]], axis=1
     )
-    df["type_token"] = df.apply(
+    df["type_token"] = df.parallel_apply(
         lambda x: [5] * len(table_token) + x["type"] + [4], axis=1
     )
-    df["dpe_token"] = df.apply(
+    df["dpe_token"] = df.parallel_apply(
         lambda x: [1] * len(table_token) + x["dpe"] + [1], axis=1
     )
     return df
@@ -220,8 +237,10 @@ def col_select(df, config, src, table_name):
 
 def get_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--rawdata_path", type=str, default="RAWDATA_PATH")
-    parser.add_argument("--inputdata_path", type=str, default="INPUTDATA_PATH")
+    parser.add_argument("--mimic3_path", type=str, required=True)
+    parser.add_argument("--mimic4_path", type=str, required=True)
+    parser.add_argument("--eicu_path", type=str, required=True)
+    parser.add_argument("--save_path", type=str, required=True)
     return parser
 
 
@@ -233,8 +252,9 @@ def main():
     sample = False
 
     # Read config and numeric dict
-    config_path = "./json/config.json"
-    numeric_path = "./json/numeric_dict.json"
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    config_path = os.path.join(current_dir, "json", "config.json")
+    numeric_path = os.path.join(current_dir, "json", "numeric_dict.json")
 
     with open(config_path, "r") as config_file:
         config = json.load(config_file)
@@ -243,20 +263,17 @@ def main():
         numeric_dict = json.load(numeric_outfile)
 
     for src in ["mimic3", "eicu", "mimic4"]:
-
-        os.makedirs(os.path.join(args.inputdata_path, src), exist_ok=True)
+        os.makedirs(os.path.join(args.save_path, src), exist_ok=True)
 
         last_file_pref = config["Table"][src][-1]["table_name"]
         table_names = [elem["table_name"] for elem in config["Table"][src]]
 
         if not os.path.isfile(
-            os.path.join(args.inputdata_path, src, f"{last_file_pref}_temp.csv")
+            os.path.join(args.save_path, src, f"{last_file_pref}_temp.csv")
         ):
 
             # 1.Filter ID, TIME, NULL
-            df_1st, column_names = filter_ID_TIME_NULL(
-                "mimic3", config, args.rawdata_path, args.inputdata_path, sample=sample
-            )
+            df_1st, column_names = filter_ID_TIME_NULL(src, config, sample, args)
             df_temp = df_1st.copy()
 
             print("Buckettize time gap")
@@ -274,16 +291,18 @@ def main():
                 part_df = part_df[table_columns]
                 three_dfs[table_name] = part_df
 
+                _table_name = table_name.split("/")[-1]
                 part_df.to_csv(
-                    os.path.join(args.inputdata_path, src, f"{table_name}_temp.csv")
+                    os.path.join(args.save_path, src, f"{_table_name}_temp.csv")
                 )
                 print(table_name, list(part_df.columns))
         else:
             print("Pass 1st & 2nd starges")
             three_dfs = {}
             for table_name in table_names:
+                _table_name = table_name.split("/")[-1]
                 three_dfs[table_name] = pd.read_csv(
-                    os.path.join(args.inputdata_path, src, f"{table_name}_temp.csv"),
+                    os.path.join(args.save_path, src, f"{_table_name}_temp.csv"),
                     index_col=0,
                 )
         # 3.Embed data
@@ -348,26 +367,26 @@ def main():
 
                     if not os.path.isdir(
                         os.path.join(
-                            args.inputdata_path, src, f"{embed_type}_{preprocess_type}"
+                            args.save_path, src, f"{embed_type}_{preprocess_type}"
                         )
                     ):
                         os.makedirs(
                             os.path.join(
-                                args.inputdata_path,
+                                args.save_path,
                                 src,
                                 f"{embed_type}_{preprocess_type}",
                             )
                         )
-
+                    _table_name = table_name.split("/")[-1]
                     df.to_pickle(
                         os.path.join(
-                            args.inputdata_path,
+                            args.save_path,
                             src,
                             f"{embed_type}_{preprocess_type}",
-                            f"{table_name}.pkl",
+                            f"{_table_name}.pkl",
                         )
                     )
-                    print("save " + src + " " + table_name + " to pkl")
+                    print("save " + src + " " + _table_name + " to pkl")
 
 
 if __name__ == "__main__":

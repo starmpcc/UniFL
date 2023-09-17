@@ -67,7 +67,7 @@
         }
     },
     "mimic4": {
-        "labevents": {
+        "hosp/labevents": {
             "value": [
                 "VALUE",
                 "VALUENUM",
@@ -77,7 +77,7 @@
             "cate": [],
             "code": "ITEMID"
         },
-        "prescriptions": {
+        "hosp/prescriptions": {
             "value": [
                 "DOSE_VAL_RX",
                 "FORM_VAL_DISP",
@@ -86,7 +86,7 @@
             "cate": [],
             "code": "DRUG"
         },
-        "inputevents": {
+        "icu/inputevents": {
             "value": [
                 "AMOUNT",
                 "RATE",

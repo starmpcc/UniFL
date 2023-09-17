@@ -1,8 +1,9 @@
 import logging
+import math
+
 import torch
 import torch.nn as nn
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
-import math
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 logger = logging.getLogger(__name__)

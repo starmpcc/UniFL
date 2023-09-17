@@ -1,12 +1,14 @@
-import torch, logging, tqdm
-import numpy as np
+import logging
 from itertools import chain
 from typing import Any, Dict, List
+
+import numpy as np
+import torch
+import tqdm
 import wandb
 
-from .utils import trainer_utils as utils
-from .utils import distributed_utils
-
+from utils import distributed_utils
+from utils import trainer_utils as utils
 
 logger = logging.getLogger(__name__)
 

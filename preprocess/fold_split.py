@@ -1,9 +1,9 @@
-import pandas as pd
-import numpy as np
-from sklearn.model_selection import StratifiedShuffleSplit
-from sklearn.model_selection import train_test_split
-from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
 import warnings
+
+import numpy as np
+import pandas as pd
+from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
+from sklearn.model_selection import StratifiedShuffleSplit, train_test_split
 
 warnings.filterwarnings("ignore")
 
@@ -94,18 +94,7 @@ def stratified_split(df, seed, test_split, val_split):
         print("columns : ", col)
         if col in df.columns:
             df[col + f"_{seed}_strat"] = 1
-            if col in ["fi_ac", "im_disch"]:
-                if col == "fi_ac":
-                    remove_class = 17
-                elif col == "im_disch":
-                    remove_class = 16
-                fi_df = df[df[col] == remove_class]
-                df = df[df[col] != remove_class].reset_index(drop=True)
-                df = stratified(df, col, seed, test_split, val_split)
-                df = pd.concat([df, fi_df], axis=0)
-                df.sort_values(by="pid", ascending=True, inplace=True)
-                df.reset_index(drop=True, inplace=True)
-            elif col == "dx":
+            if col == "dx":
                 df = multiclass_multilabel_stratified(df, col, seed)
             else:
                 df = stratified(df, col, seed, test_split, val_split)
