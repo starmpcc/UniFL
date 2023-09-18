@@ -810,7 +810,7 @@ def get_parser():
     parser.add_argument("--mimic3_path", type=str, required=True)
     parser.add_argument("--mimic4_path", type=str, required=True)
     parser.add_argument("--eicu_path", type=str, required=True)
-    parser.add_argument("--cache_path", type=str, default="~/.cache")
+    parser.add_argument("--cache_path", type=str, default=None)
     parser.add_argument("--save_path", type=str, required=True)
     parser.add_argument("--event_window_hours", type=int, default=12)
     parser.add_argument("--time_gap_hours", type=int, default=12)
@@ -823,6 +823,8 @@ def get_parser():
 
 def main():
     args = get_parser().parse_args()
+    if args.cache_path is None:
+        args.cache_path = os.path.join(args.save_path, "cache")
     args.ccs_path, args.gem_path, args.i10gem_path = download_files(args)
     print("create MIMIC3 ICU start!")
     create_MIMIC3_ICU(args)
